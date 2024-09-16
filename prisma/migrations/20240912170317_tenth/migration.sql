@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN     "leftQuestions" INTEGER NOT NULL DEFAULT 1,
+ADD COLUMN     "plan" INTEGER NOT NULL DEFAULT 0;
