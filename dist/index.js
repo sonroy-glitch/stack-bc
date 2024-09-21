@@ -21,7 +21,7 @@ const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const node_cron_1 = __importDefault(require("node-cron"));
 const nodemailer_1 = __importDefault(require("nodemailer"));
 const generative_ai_1 = require("@google/generative-ai");
-const genAI = new generative_ai_1.GoogleGenerativeAI("AIzaSyAJgz8ghfOcVzkzPBrU1OBPR-Y1JApEZm0");
+const genAI = new generative_ai_1.GoogleGenerativeAI();
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 const currentDate = new Date();
 const prisma = new client_1.PrismaClient();
@@ -34,7 +34,7 @@ const transporter = nodemailer_1.default.createTransport({
     secure: false,
     auth: {
         user: "mediumblog10@gmail.com",
-        pass: "yffk tvgz byen jeqa",
+        pass: ,
     },
 });
 app.use((0, cors_1.default)());
