@@ -1,550 +1,509 @@
-//endpoint to signup, signin , add question,add answer, update question, update answer, delete question and answer alltogether,delete answer specifiaclly,update about &tags,upvote and downvote,time integration,token verifiaction
-import express, { Request, Response } from "express";
-import { z } from "zod";
-import cors from "cors";
-import { PrismaClient } from "@prisma/client";
-import jwt,{JwtPayload} from "jsonwebtoken";
-import bcrypt from "bcryptjs";
-import cron from "node-cron"
-import nodemailer from "nodemailer"
-import moment from "moment-timezone"
-import flash from "connect-flash"
-import { GoogleGenerativeAI } from "@google/generative-ai";
-const genAI = new GoogleGenerativeAI(
-  "AIzaSyAJgz8ghfOcVzkzPBrU1OBPR-Y1JApEZm0"
-);
+"use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = __importDefault(require("express"));
+const zod_1 = require("zod");
+const cors_1 = __importDefault(require("cors"));
+const client_1 = require("@prisma/client");
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const bcryptjs_1 = __importDefault(require("bcryptjs"));
+const node_cron_1 = __importDefault(require("node-cron"));
+const nodemailer_1 = __importDefault(require("nodemailer"));
+const generative_ai_1 = require("@google/generative-ai");
+const genAI = new generative_ai_1.GoogleGenerativeAI(process.env.AI_URL);
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 const currentDate = new Date();
-const prisma = new PrismaClient();
-const app = express();
+const prisma = new client_1.PrismaClient();
+const app = (0, express_1.default)();
 const jwtSecret = "sr1435";
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false, // Use `true` for port 465, `false` for all other ports
-  auth: {
-    user: "mediumblog10@gmail.com",
-    pass: "yffk tvgz byen jeqa",
-  },
-});  
-app.use(cors());
-app.use(express.json());
-
-const signupSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8),
-  name: z.string().min(1),
-});
-
-const signinSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8),
-});
-
-const postSchema = z.object({
-  title: z.string().min(3),
-  description: z.string().min(10),
-  tags: z.string(),
-});
-
-app.post("/auth/signup", async (req: Request, res: Response) => {
-  var body = req.body;
-  var check = signupSchema.safeParse(body);
-  if (!check.success) {
-    return res.status(202).send("Wrong format of the email or password");
-  }
-  var user = await prisma.user.findFirst({
-    where: { email: body.email },
-  });
-  if (user != null) {
-    return res.status(202).send("User already exists, signin");
-  }
-
-  var hashedPassword = await bcrypt.hash(body.password, 10);
-  var data = await prisma.user.create({
-    data: {
-      name: body.name,
-      email: body.email,
-      password: hashedPassword,
-      time: currentDate.getTime() / 100,
+const transporter = nodemailer_1.default.createTransport({
+    service: "gmail",
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false,
+    auth: {
+        user: "mediumblog10@gmail.com",
+        pass: process.env.MAIL_URL,
     },
-  });
-  if (data != null) {
-    var token = jwt.sign({ name: body.name }, jwtSecret);
-    return res.status(200).send(token + "+" + data.name[0].toUpperCase());
-  }
 });
-
-app.post("/auth/signin", async (req: Request, res: Response) => {
-  var body = req.body;
-  var check = signinSchema.safeParse(body);
-  if (!check.success) {
-    return res.status(202).send("Wrong format of the email or password");
-  }
-  var user = await prisma.user.findFirst({
-    where: { email: body.email },
-  });
-  if (user == null) {
-    return res.status(202).send("User doesnt exists, signup");
-  } else if (user != null) {
-    var check1 = await bcrypt.compare(body.password, user.password);
-    if (!check1) {
-      return res.status(202).send("Wrong password");
+app.use((0, cors_1.default)());
+app.use(express_1.default.json());
+const signupSchema = zod_1.z.object({
+    email: zod_1.z.string().email(),
+    password: zod_1.z.string().min(8),
+    name: zod_1.z.string().min(1),
+});
+const signinSchema = zod_1.z.object({
+    email: zod_1.z.string().email(),
+    password: zod_1.z.string().min(8),
+});
+const postSchema = zod_1.z.object({
+    title: zod_1.z.string().min(3),
+    description: zod_1.z.string().min(10),
+    tags: zod_1.z.string(),
+});
+app.post("/auth/signup", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var body = req.body;
+    var check = signupSchema.safeParse(body);
+    if (!check.success) {
+        return res.status(202).send("Wrong format of the email or password");
     }
-    var token = jwt.sign({ name: user.name }, jwtSecret);
-    return res.status(200).send(token + "+" + user.name[0].toUpperCase());
-  }
-});
-
-app.use("/api/*", (req: Request, res: Response, next) => {
-  var token = String(req.headers.auth);
-  var check = jwt.verify(token, jwtSecret, (err) => {
-    if (err) {
-      return res.status(202).send("Invalid token");
+    var user = yield prisma.user.findFirst({
+        where: { email: body.email },
+    });
+    if (user != null) {
+        return res.status(202).send("User already exists, signin");
     }
-    next();
-  });
-});
-
-app.post("/api/question", async (req: Request, res: Response) => {
-  var token = String(req.headers.auth);
-  var body = req.body;
-  var verify = jwt.decode(token);
-  if (verify !== null && typeof verify === "object") {
-    var data = await prisma.user.findFirst({
-      where: { name: verify.name },
+    var hashedPassword = yield bcryptjs_1.default.hash(body.password, 10);
+    var data = yield prisma.user.create({
+        data: {
+            name: body.name,
+            email: body.email,
+            password: hashedPassword,
+            time: currentDate.getTime() / 100,
+        },
     });
     if (data != null) {
-      if(data.leftQuestions>0){
-      var question = await prisma.question.create({
-        data: {
-          user_id: data.id,
-          name: data.name,
-          title: body.title,
-          description: body.description,
-          tags: body.tags,
-          time: currentDate.getTime() / 100,
-        },
-      });
-      var points=Number(data.points)+5;
-      var update = await prisma.user.update({
-        where:{name:verify.name},
-        data:{leftQuestions:Number(data.leftQuestions-1),
-          points
+        var token = jsonwebtoken_1.default.sign({ name: body.name }, jwtSecret);
+        return res.status(200).send(token + "+" + data.name[0].toUpperCase());
+    }
+}));
+app.post("/auth/signin", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var body = req.body;
+    var check = signinSchema.safeParse(body);
+    if (!check.success) {
+        return res.status(202).send("Wrong format of the email or password");
+    }
+    var user = yield prisma.user.findFirst({
+        where: { email: body.email },
+    });
+    if (user == null) {
+        return res.status(202).send("User doesnt exists, signup");
+    }
+    else if (user != null) {
+        var check1 = yield bcryptjs_1.default.compare(body.password, user.password);
+        if (!check1) {
+            return res.status(202).send("Wrong password");
         }
-      })
-      return res.status(200).json(question);
+        var token = jsonwebtoken_1.default.sign({ name: user.name }, jwtSecret);
+        return res.status(200).send(token + "+" + user.name[0].toUpperCase());
     }
-    else{
-      return res.status(202).send("Out of questions limit");
-    }
-    }
-  }
-});
-
-app.post("/api/answer", async (req: Request, res: Response) => {
-  var token = String(req.headers.auth);
-  var body = req.body;
-  var verify = jwt.decode(token);
-  if (verify !== null && typeof verify === "object") {
-    var data = await prisma.user.findFirst({
-      where: { name: verify.name },
+}));
+app.use("/api/*", (req, res, next) => {
+    var token = String(req.headers.auth);
+    var check = jsonwebtoken_1.default.verify(token, jwtSecret, (err) => {
+        if (err) {
+            return res.status(202).send("Invalid token");
+        }
+        next();
     });
-    if (data != null) {
-      var question = await prisma.answer.create({
-        data: {
-          user_id: data.id,
-          name: data.name,
-          question_id: body.id,
-          answer: body.answer,
-          time: currentDate.getTime() / 100,
-        },
-      });
-      var send = await prisma.question.findFirst({
-        where: { id: body.id },
+});
+app.post("/api/question", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var token = String(req.headers.auth);
+    var body = req.body;
+    var verify = jsonwebtoken_1.default.decode(token);
+    if (verify !== null && typeof verify === "object") {
+        var data = yield prisma.user.findFirst({
+            where: { name: verify.name },
+        });
+        if (data != null) {
+            if (data.leftQuestions > 0) {
+                var question = yield prisma.question.create({
+                    data: {
+                        user_id: data.id,
+                        name: data.name,
+                        title: body.title,
+                        description: body.description,
+                        tags: body.tags,
+                        time: currentDate.getTime() / 100,
+                    },
+                });
+                var points = Number(data.points) + 5;
+                var update = yield prisma.user.update({
+                    where: { name: verify.name },
+                    data: { leftQuestions: Number(data.leftQuestions - 1),
+                        points
+                    }
+                });
+                return res.status(200).json(question);
+            }
+            else {
+                return res.status(202).send("Out of questions limit");
+            }
+        }
+    }
+}));
+app.post("/api/answer", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var token = String(req.headers.auth);
+    var body = req.body;
+    var verify = jsonwebtoken_1.default.decode(token);
+    if (verify !== null && typeof verify === "object") {
+        var data = yield prisma.user.findFirst({
+            where: { name: verify.name },
+        });
+        if (data != null) {
+            var question = yield prisma.answer.create({
+                data: {
+                    user_id: data.id,
+                    name: data.name,
+                    question_id: body.id,
+                    answer: body.answer,
+                    time: currentDate.getTime() / 100,
+                },
+            });
+            var send = yield prisma.question.findFirst({
+                where: { id: body.id },
+                select: {
+                    id: true,
+                    user_id: true,
+                    title: true,
+                    name: true,
+                    description: true,
+                    answer: true,
+                    upvote: true,
+                    downvote: true,
+                    tags: true,
+                    time: true,
+                },
+            });
+            var points = Number(data.points) + 5;
+            var update = yield prisma.user.update({
+                where: { name: verify.name },
+                data: {
+                    points
+                }
+            });
+            return res.status(200).json(send);
+        }
+    }
+}));
+app.get("/send/all", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var data = yield prisma.question.findMany({
         select: {
-          id: true,
-          user_id: true,
-          title: true,
-          name: true,
-          description: true,
-          answer: true,
-          upvote: true,
-          downvote: true,
-          tags: true,
-          time: true,
+            id: true,
+            user_id: true,
+            title: true,
+            name: true,
+            description: true,
+            answer: true,
+            upvote: true,
+            downvote: true,
+            tags: true,
+            time: true,
         },
-      });
-      var points=Number(data.points)+5;
-      var update = await prisma.user.update({
-        where:{name:verify.name},
-        data:{
-          points
-        }
-      })
-      return res.status(200).json(send);
-    }
-  }
-});
-
-app.get("/send/all", async (req: Request, res: Response) => {
-  var data = await prisma.question.findMany({
-    select: {
-      id: true,
-      user_id: true,
-      title: true,
-      name: true,
-      description: true,
-      answer: true,
-      upvote: true,
-      downvote: true,
-      tags: true,
-      time: true,
-    },
-  });
-  return res.status(200).json(data);
-});
-app.get("/send/:id", async (req: Request, res: Response) => {
-  var id = Number(req.params.id);
-  var data = await prisma.question.findFirst({
-    where: { id },
-    select: {
-      id: true,
-      user_id: true,
-      title: true,
-      name: true,
-      description: true,
-      answer: true,
-      upvote: true,
-      downvote: true,
-      tags: true,
-      time: true,
-    },
-  });
-  return res.status(200).json(data);
-});
-
-app.put("/api/question", async (req: Request, res: Response) => {
-  var question_id = Number(req.headers.question_id);
-  var data = req.body; //just the question in fromat of title and description
-  var question = await prisma.question.update({
-    where: { id: question_id },
-    data: {
-      title: data.title,
-      description: data.description,
-    },
-  });
-  return res.status(200).send("question updated successfully");
-});
-app.put("/api/answer", async (req: Request, res: Response) => {
-  var answer_id = Number(req.headers.answer_id);
-  var data = req.body; //just the answer
-  var answer = await prisma.answer.update({
-    where: { id: answer_id },
-    data: {
-      answer: data.answer,
-    },
-  });
-  return res.status(200).send("question updated successfully");
-});
-app.get("/api/delete/answer", async (req: Request, res: Response) => {
-  var answer_id = Number(req.headers.answer_id);
-  var user_id=Number(req.headers.user_id);
-  var answer = await prisma.answer.delete({
-    where: { id: answer_id },
-  });
-  var search=await prisma.user.findFirst({
-    where:{id:user_id}
-  })
-  if(search){
-  var points=Number(search.points)-5;
-  await prisma.user.update({
-    where:{id:user_id},
-    data:{points}
-  })
-}
-  return res.status(200).send("answer deleted successfully");
-});
-app.get("/api/delete/question", async (req: Request, res: Response) => {
-  var question_id = Number(req.headers.question_id);
-  var answer = await prisma.answer.deleteMany({
-    where: { question_id },
-  });
-  var question = await prisma.question.delete({
-    where: { id: question_id },
-  });
-
-  return res.status(200).json(answer);
-});
-//token verifaiction useEffect----->run on click of signin
-app.get("/verify", async (req: Request, res: Response) => {
-  const token = String(req.headers.auth);
-  var check = jwt.verify(token, jwtSecret, (err: any) => {
-    if (err) {
-      return res.status(202).send("Invalid token");
-    }
-  });
-  var user = jwt.decode(token);
-  if (user != null && typeof user === "object") {
-    var data = await prisma.user.findFirst({
-      where: { name: user.name },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        about: true,
-        tags: true,
-        time: true,
-        question: true,
-        answer: true,
-      },
     });
     return res.status(200).json(data);
-  }
-});
-//update the tags or about
-app.post("/api/user", async (req: Request, res: Response) => {
-  var user_id = Number(req.headers.user_id);
-  var data = req.body;
-  var update = await prisma.user.update({
-    where: { id: user_id },
-    data: {
-      about: data.about,
-    },
-  });
-  return res.status(200).send("user updated successfully");
-});
-//fetch all users and respective and update votes directly
-app.get("/api/send/user/all", async (req: Request, res: Response) => {
-  var user = await prisma.user.findMany({
-    select: {
-      id: true,
-      name: true,
-      tags: true,
-    },
-  });
-  return res.status(200).json(user)
-});
-app.get("/api/send/user/:name", async (req: Request, res: Response) => {
-  var name= String(req.params.name)
-  var user = await prisma.user.findFirst({
-    where: { name},
-    select: {
-      id: true,
-      name: true,
-      tags: true,
-      about:true,
-      time:true,
-      question:true,
-      answer:true,
-      points:true
-    },
-  });
-  return res.status(200).json(user)
-});
-//updating upvote and downvote at once 
-app.post("/api/vote",async(req:Request,res:Response)=>{
-  var body=req.body;
- var id=Number(req.headers.question_id)
- var data = await prisma.question.update({
-  where:{id},
-  data:{
-    upvote:body.upvote,
-    downvote:body.downvote
-  }
- })
-
- return res.status(200).json(data)
-})
-//sending email endpoint
-function otpGenerator(){
-  return parseInt(String(Math.random()*100000))
-}
-app.get("/api/otp",async(req:Request,res:Response)=>{
-  var token=String(req.headers.auth);
-  var name = jwt.decode(token) as JwtPayload; 
-  var search= await prisma.user.findFirst({
-    where:{name:name.name}
-  })
-  const otp= otpGenerator();
-  if(search){
-    const info = await transporter.sendMail({
-      from: '"Medium" <process.env.User>', // sender address
-      to: [`${search.email}`], // list of receivers
-      subject: "OTP", // Subject line
-      html: `<p>The otp is ${otp} </p>`// plain text body
+}));
+app.get("/send/:id", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var id = Number(req.params.id);
+    var data = yield prisma.question.findFirst({
+        where: { id },
+        select: {
+            id: true,
+            user_id: true,
+            title: true,
+            name: true,
+            description: true,
+            answer: true,
+            upvote: true,
+            downvote: true,
+            tags: true,
+            time: true,
+        },
     });
-  return res.json({
-    otp
-  })
-  
-
-  }
-})
-app.post("/chatbot",async(req:Request,res:Response)=>{
-    const question=String(req.body.question);
-    var arr=question.split(" ");
-    var count =0;
-    arr.filter((item:string)=>{
-      if(item=="java"){
-        count=1;
-        return;
-      }
-    })
-    if(!count){
-      const result = await model.generateContent([question]);
-      var answer=result.response.text();
-      return res.status(200).json({
-        question,
-        answer
-      })
+    return res.status(200).json(data);
+}));
+app.put("/api/question", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var question_id = Number(req.headers.question_id);
+    var data = req.body;
+    var question = yield prisma.question.update({
+        where: { id: question_id },
+        data: {
+            title: data.title,
+            description: data.description,
+        },
+    });
+    return res.status(200).send("question updated successfully");
+}));
+app.put("/api/answer", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var answer_id = Number(req.headers.answer_id);
+    var data = req.body;
+    var answer = yield prisma.answer.update({
+        where: { id: answer_id },
+        data: {
+            answer: data.answer,
+        },
+    });
+    return res.status(200).send("question updated successfully");
+}));
+app.get("/api/delete/answer", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var answer_id = Number(req.headers.answer_id);
+    var user_id = Number(req.headers.user_id);
+    var answer = yield prisma.answer.delete({
+        where: { id: answer_id },
+    });
+    var search = yield prisma.user.findFirst({
+        where: { id: user_id }
+    });
+    if (search) {
+        var points = Number(search.points) - 5;
+        yield prisma.user.update({
+            where: { id: user_id },
+            data: { points }
+        });
+    }
+    return res.status(200).send("answer deleted successfully");
+}));
+app.get("/api/delete/question", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var question_id = Number(req.headers.question_id);
+    var answer = yield prisma.answer.deleteMany({
+        where: { question_id },
+    });
+    var question = yield prisma.question.delete({
+        where: { id: question_id },
+    });
+    return res.status(200).json(answer);
+}));
+app.get("/verify", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const token = String(req.headers.auth);
+    var check = jsonwebtoken_1.default.verify(token, jwtSecret, (err) => {
+        if (err) {
+            return res.status(202).send("Invalid token");
+        }
+    });
+    var user = jsonwebtoken_1.default.decode(token);
+    if (user != null && typeof user === "object") {
+        var data = yield prisma.user.findFirst({
+            where: { name: user.name },
+            select: {
+                id: true,
+                email: true,
+                name: true,
+                about: true,
+                tags: true,
+                time: true,
+                question: true,
+                answer: true,
+            },
+        });
+        return res.status(200).json(data);
+    }
+}));
+app.post("/api/user", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var user_id = Number(req.headers.user_id);
+    var data = req.body;
+    var update = yield prisma.user.update({
+        where: { id: user_id },
+        data: {
+            about: data.about,
+        },
+    });
+    return res.status(200).send("user updated successfully");
+}));
+app.get("/api/send/user/all", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var user = yield prisma.user.findMany({
+        select: {
+            id: true,
+            name: true,
+            tags: true,
+        },
+    });
+    return res.status(200).json(user);
+}));
+app.get("/api/send/user/:name", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var name = String(req.params.name);
+    var user = yield prisma.user.findFirst({
+        where: { name },
+        select: {
+            id: true,
+            name: true,
+            tags: true,
+            about: true,
+            time: true,
+            question: true,
+            answer: true,
+            points: true
+        },
+    });
+    return res.status(200).json(user);
+}));
+app.post("/api/vote", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var body = req.body;
+    var id = Number(req.headers.question_id);
+    var data = yield prisma.question.update({
+        where: { id },
+        data: {
+            upvote: body.upvote,
+            downvote: body.downvote
+        }
+    });
+    return res.status(200).json(data);
+}));
+function otpGenerator() {
+    return parseInt(String(Math.random() * 100000));
+}
+app.get("/api/otp", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var token = String(req.headers.auth);
+    var name = jsonwebtoken_1.default.decode(token);
+    var search = yield prisma.user.findFirst({
+        where: { name: name.name }
+    });
+    const otp = otpGenerator();
+    if (search) {
+        const info = yield transporter.sendMail({
+            from: '"Medium" <process.env.User>',
+            to: [`${search.email}`],
+            subject: "OTP",
+            html: `<p>The otp is ${otp} </p>`
+        });
+        return res.json({
+            otp
+        });
+    }
+}));
+app.post("/chatbot", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const question = String(req.body.question);
+    var arr = question.split(" ");
+    var count = 0;
+    arr.filter((item) => {
+        if (item == "java") {
+            count = 1;
+            return;
+        }
+    });
+    if (!count) {
+        const result = yield model.generateContent([question]);
+        var answer = result.response.text();
+        return res.status(200).json({
+            question,
+            answer
+        });
     }
     return res.status(200).json({
-      question,
-      answer:"No java related answer to be provided"
-    })
-    
-})
-//question calculator based on amount 
-function amount(price:Number){
-  if(price==100){
-    return 5;
-  }
-  else if(price==300){
-    return 10;
-  }
-  else {
-    return 999;
-  }
-}
-//keeps default plan and then updates on successfull payment--does iq.t only the successful payment
-//payment gateway
-// payment verification
-app.use(express.urlencoded({ extended: true }));
-app.post("/success",async(req:Request,res:Response)=>{
-  const body=req.body;
-  var plan =Number(body.amount)
-  if(body.status=="success"){
-    const data = await prisma.user.update({
-      where:{email:body.email},
-      data:{
-        plan,
-        leftQuestions:amount(body.amount)
-      }
-    })
-    const info = await transporter.sendMail({
-      from: '"Stackoverflow" <process.env.User>', // sender address
-      to: [`${body.email}`], // list of receiver5123-4567-8901-2346s
-      subject: "Payment Sucess", // Subject line
-      html: `<div>The payment was sucessfull for purchasing ${body.productinfo} with price ${body.price}. The transaction is is ${body.mihpayid}</div>`// plain text body
+        question,
+        answer: "No java related answer to be provided"
     });
-
-      res.redirect("https://stack-fr.vercel.app/")
-      
-      
-  }
-})
-app.post("/failure",(req:Request,res:Response)=>{
-
-  res.redirect("https://stack-fr.vercel.app/")
-})
-
-cron.schedule('0 0 0 * * *',async()=>{
-  var data = await prisma.user.findMany({where:{}});
-  data.map(async(item:any)=>{
-   var questions = amount(Number(item.plan));
-   var update = await prisma.user.update({
-    where:{id:item.id},
-    data:{leftQuestions:questions}
-   })
-  })
-  console.log("this thing ran")
-},{
-  timezone:"Asia/Kolkata"
-})
-//points sharing api
-app.post("/api/points/share",async(req:Request,res:Response)=>{
-  //getting the details of thto be sent user and
-  const body:{
-    user_id:number,
-    sent_name:string,
-    points:number
-  }=req.body;
-  
-  const response = await prisma.user.findFirst({
-    where:{id:body.user_id}
-  })  
-  if(response){
-  if(response.points>10){
-  const user_points=Number(response.points)-body.points;
-  const user_update=await prisma.user.update({
-    where:{id:body.user_id},
-    data:{points:user_points}
-  })
-  
-  const response1=await prisma.user.findFirst({
-    where:{name:body.sent_name}
-  })
-  if(response1){
-  const sent_points=Number(response1.points)+Number(body.points);
-  const sent_update=await prisma.user.update({
-    where:{name:body.sent_name},
-    data:{points:sent_points}
-  })
-}
-  }
-  return res.status(200).send("Points update");
-  }
-  else{
-    return res.status(202).send("Not enough points to update");
-  }
-}
-  
-
-
-)
-//make an endpoint for an answer upvote and downvote with points initailization;\
-app.post("/answer/vote",async(req:Request,res:Response)=>{
-  var body:{
-    answer_id:number,
-    upvote:number[],
-    downvote:number[],
-    voteType:string
-  }=req.body;
-  var data= await prisma.answer.findFirst({
-    where:{id:Number(body.answer_id)}
-  })
-  var update=await prisma.answer.update({
-    where:{id:Number(body.answer_id)},
-    data:{upvote:body.upvote,
-      downvote:body.downvote
+}));
+function amount(price) {
+    if (price == 100) {
+        return 5;
     }
-  })
-  if(data){
-    var updateUser=await prisma.user.findFirst({
-      where:{id:Number(data.user_id)}
-    })
-    if(updateUser){
-      if(body.voteType=="upvote"){
-    var updatedPoints=Number(updateUser.points)+5;
-    var update1= await prisma.user.update({
-      where:{id:Number(data.user_id)},
-      data:{ points:updatedPoints}
-    })
-  }
-  else if(body.voteType=="downvote"){
-    var updatedPoints=Number(updateUser.points)-5;
-    var update1= await prisma.user.update({
-      where:{id:Number(data.user_id)},
-      data:{ points:updatedPoints}
-    })
-  }
-  }
-  }
-  return res.status(200).send("Voted successfully");
-
-})
-
-
+    else if (price == 300) {
+        return 10;
+    }
+    else {
+        return 999;
+    }
+}
+app.use(express_1.default.urlencoded({ extended: true }));
+app.post("/success", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const body = req.body;
+    var plan = Number(body.amount);
+    if (body.status == "success") {
+        const data = yield prisma.user.update({
+            where: { email: body.email },
+            data: {
+                plan,
+                leftQuestions: amount(body.amount)
+            }
+        });
+        const info = yield transporter.sendMail({
+            from: '"Stackoverflow" <process.env.User>',
+            to: [`${body.email}`],
+            subject: "Payment Sucess",
+            html: `<div>The payment was sucessfull for purchasing ${body.productinfo} with price ${body.price}. The transaction is is ${body.mihpayid}</div>`
+        });
+        res.redirect("https://stackoverflow-sr-zeta.vercel.app/");
+    }
+}));
+app.post("/failure", (req, res) => {
+    res.redirect("https://stackoverflow-sr-zeta.vercel.app/");
+});
+node_cron_1.default.schedule('0 0 0 * * *', () => __awaiter(void 0, void 0, void 0, function* () {
+    var data = yield prisma.user.findMany({ where: {} });
+    data.map((item) => __awaiter(void 0, void 0, void 0, function* () {
+        var questions = amount(Number(item.plan));
+        var update = yield prisma.user.update({
+            where: { id: item.id },
+            data: { leftQuestions: questions }
+        });
+    }));
+    console.log("this thing ran");
+}), {
+    timezone: "Asia/Kolkata"
+});
+app.post("/api/points/share", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const body = req.body;
+    const response = yield prisma.user.findFirst({
+        where: { id: body.user_id }
+    });
+    if (response) {
+        if (response.points > 10) {
+            const user_points = Number(response.points) - body.points;
+            const user_update = yield prisma.user.update({
+                where: { id: body.user_id },
+                data: { points: user_points }
+            });
+            const response1 = yield prisma.user.findFirst({
+                where: { name: body.sent_name }
+            });
+            if (response1) {
+                const sent_points = Number(response1.points) + Number(body.points);
+                const sent_update = yield prisma.user.update({
+                    where: { name: body.sent_name },
+                    data: { points: sent_points }
+                });
+            }
+        }
+        return res.status(200).send("Points update");
+    }
+    else {
+        return res.status(202).send("Not enough points to update");
+    }
+}));
+app.post("/answer/vote", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var body = req.body;
+    var data = yield prisma.answer.findFirst({
+        where: { id: Number(body.answer_id) }
+    });
+    var update = yield prisma.answer.update({
+        where: { id: Number(body.answer_id) },
+        data: { upvote: body.upvote,
+            downvote: body.downvote
+        }
+    });
+    if (data) {
+        var updateUser = yield prisma.user.findFirst({
+            where: { id: Number(data.user_id) }
+        });
+        if (updateUser) {
+            if (body.voteType == "upvote") {
+                var updatedPoints = Number(updateUser.points) + 5;
+                var update1 = yield prisma.user.update({
+                    where: { id: Number(data.user_id) },
+                    data: { points: updatedPoints }
+                });
+            }
+            else if (body.voteType == "downvote") {
+                var updatedPoints = Number(updateUser.points) - 5;
+                var update1 = yield prisma.user.update({
+                    where: { id: Number(data.user_id) },
+                    data: { points: updatedPoints }
+                });
+            }
+        }
+    }
+    return res.status(200).send("Voted successfully");
+}));
 app.listen(3000);
