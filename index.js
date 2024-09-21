@@ -396,10 +396,10 @@ app.post("/chatbot", (req, res) => __awaiter(void 0, void 0, void 0, function* (
     });
 }));
 function amount(price) {
-    if (price == 100) {
+    if (price == 100||price== 90) {
         return 5;
     }
-    else if (price == 300) {
+    else if (price == 300||price ==270) {
         return 10;
     }
     else {
