@@ -424,11 +424,11 @@ app.post("/success", (req, res) => __awaiter(void 0, void 0, void 0, function* (
             subject: "Payment Sucess",
             html: `<div>The payment was sucessfull for purchasing ${body.productinfo} with price ${body.price}. The transaction is is ${body.mihpayid}</div>`
         });
-        res.redirect("https://stackoverflow-sr-zeta.vercel.app/");
+        res.redirect("https://stack-fr.vercel.app/");
     }
 }));
 app.post("/failure", (req, res) => {
-    res.redirect("https://stackoverflow-sr-zeta.vercel.app/");
+    res.redirect("https://stack-fr.vercel.app/");
 });
 node_cron_1.default.schedule('0 0 0 * * *', () => __awaiter(void 0, void 0, void 0, function* () {
     var data = yield prisma.user.findMany({ where: {} });
