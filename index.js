@@ -472,7 +472,7 @@ app.post("/api/points/share", (req, res) => __awaiter(void 0, void 0, void 0, fu
         return res.status(202).send("Not enough points to update");
     }
 }));
-app.post("/answer/vote", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+app.post("api/answer/vote", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var body = req.body;
     var data = yield prisma.answer.findFirst({
         where: { id: Number(body.answer_id) }
