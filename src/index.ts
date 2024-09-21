@@ -10,7 +10,7 @@ import nodemailer from "nodemailer"
 import moment from "moment-timezone"
 import { GoogleGenerativeAI } from "@google/generative-ai";
 const genAI = new GoogleGenerativeAI(
-  "AIzaSyAJgz8ghfOcVzkzPBrU1OBPR-Y1JApEZm0"
+  
 );
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 const currentDate = new Date();
@@ -24,7 +24,7 @@ const transporter = nodemailer.createTransport({
   secure: false, // Use `true` for port 465, `false` for all other ports
   auth: {
     user: "mediumblog10@gmail.com",
-    pass: "yffk tvgz byen jeqa",
+    pass: ,
   },
 });  
 app.use(cors());
